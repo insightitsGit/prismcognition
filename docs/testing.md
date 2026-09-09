@@ -34,9 +34,9 @@ All tests use local deterministic adapters or mocked transports, temporary stora
 and explicit offline settings. No live provider credentials are required.
 The coverage floor is 93% statement coverage; coverage is not a correctness or
 security certification. CI is configured for Windows and Linux, Python 3.11–3.14,
-and includes a clean wheel installation outside the checkout. This workflow only
-runs after the project is placed in a GitHub repository; the initial workspace
-has no Git repository. The cross-platform matrix has not been run locally.
+and includes a clean wheel installation outside the checkout. CI runs on
+https://github.com/insightitsGit/prismcognition. The cross-platform matrix has
+not been run locally.
 
 ## New regression tests
 
@@ -95,9 +95,10 @@ does not close the following release gates:
 - Add redacted logs, metrics, tracing, restricted storage permissions, retention,
   encryption, backup/restore drills, and operational runbooks. Local file writers
   assume a trusted storage directory; path validation is not filesystem isolation.
-- Choose a license, document supported API/version compatibility, lock deployment
-  dependencies, scan them for vulnerabilities, and review the built distribution.
-  No license was present during this pass. Do not invent licensing terms.
+- Document supported API/version compatibility, lock deployment dependencies,
+  scan them for vulnerabilities, and review the built distribution. The library
+  is MIT-licensed (`LICENSE`). Publishing uses `python tools/publish.py` with
+  `PYPI_API_TOKEN` in the environment, or the GitHub `publish.yml` workflow.
 
 ## Benefits future users can evaluate
 

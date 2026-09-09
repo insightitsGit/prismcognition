@@ -15,5 +15,7 @@ test-results.xml
 .env
 .env.*
 !.env.example
+.pypirc
+.pypirc.*
 .idea/
 .vscode/

@@ -12,9 +12,10 @@ offline mode lets you explore the workflow without API credentials.
 Use it when a reviewer needs to understand **why perspectives disagree, what
 evidence is missing, and which assumptions could change a decision**.
 
-[Run the quickstart](#quickstart) · [Explore the Python API](#python-example) ·
-[Review release readiness](docs/testing.md) ·
-[Read the architecture](docs/design/prismcognition-v2.1-architecture.md)
+[Install from PyPI](#install) · [Quickstart](#quickstart) ·
+[Python API](#python-example) ·
+[PyPI 2.1.0](https://pypi.org/project/prismcognition/2.1.0/) ·
+[Architecture](https://github.com/insightitsGit/prismcognition/blob/main/docs/design/prismcognition-v2.1-architecture.md)
 
 ## Why use PrismCognition?
 
@@ -38,7 +39,9 @@ Accuracy improvements, cost savings, and production scale have not been benchmar
 
 ## Project status
 
-Version **2.1.0** · Python **3.11+** · Development and evaluation stage.
+Version **2.1.0** is published on [PyPI](https://pypi.org/project/prismcognition/)
+([release page](https://pypi.org/project/prismcognition/2.1.0/)).
+Python **3.11+** · Development and evaluation stage.
 
 The latest local validation recorded **125 passing tests** and **94.06% statement
 coverage** on Windows/Python 3.12.14. CI has a 93% coverage floor and is configured
@@ -50,9 +53,43 @@ not transactional across artifacts and bundles, and repeated inquiries can
 overwrite earlier runs. Review the [enterprise release gates](docs/testing.md#before-an-enterprise-release)
 before a production deployment.
 
+## Install
+
+Install the published package from [PyPI](https://pypi.org/project/prismcognition/):
+
+```sh
+python -m pip install prismcognition
+```
+
+Pin the current release:
+
+```sh
+python -m pip install "prismcognition==2.1.0"
+```
+
+Upgrade later:
+
+```sh
+python -m pip install --upgrade prismcognition
+```
+
+That installs the `prismcognition` library and the `prismcognition` command.
+Python 3.11 or newer is required. Optional extras:
+
+```sh
+python -m pip install "prismcognition[dev]"
+python -m pip install "prismcognition[publish]"
+```
+
 ## Quickstart
 
-From a local checkout of this project:
+From a published install:
+
+```sh
+python -m prismcognition deliberate "Should we expand the plant this quarter?" --risk-level LOW --data-dir .prismcognition-demo
+```
+
+Or from a local checkout of this project:
 
 ```sh
 python -m venv .venv
@@ -79,7 +116,7 @@ python -m prismcognition deliberate "Should we expand the plant this quarter?" -
 
 This uses deterministic scaffolding by default. It demonstrates the data flow;
 its method outputs are not independent expert judgments. No provider credentials
-are needed. Installation from a public package registry is not assumed here.
+are needed.
 
 For machine-readable output or an optional action note:
 
@@ -146,7 +183,7 @@ A `DeliberationArtifact` includes:
 
 The engine routes an inquiry, evaluates methods, applies failure predicates,
 assesses grounding, and derives the final artifact. See the
-[architecture and invariants](docs/design/prismcognition-v2.1-architecture.md)
+[architecture and invariants](https://github.com/insightitsGit/prismcognition/blob/main/docs/design/prismcognition-v2.1-architecture.md)
 for the detailed contracts.
 
 ## Add evidence
@@ -200,8 +237,27 @@ python -m build
 
 Tests cover reasoning invariants, provider failures, CLI workflows, input
 validation, persistence, concurrency scenarios, and replay. See
-[testing and release acceptance](docs/testing.md) before interpreting coverage
-as evidence of production readiness.
+[testing and release acceptance](https://github.com/insightitsGit/prismcognition/blob/main/docs/testing.md)
+before interpreting coverage as evidence of production readiness.
+
+## Publish to PyPI
+
+**2.1.0** is already on PyPI: https://pypi.org/project/prismcognition/2.1.0/
+
+Later releases need a new version in `pyproject.toml` and `prismcognition/__init__.py`.
+Do not put the API token in the repository, in chat, or in a committed config file.
+
+```sh
+python -m pip install ".[publish]"
+set PYPI_API_TOKEN=pypi-...
+python tools/publish.py
+```
+
+On PowerShell: `$env:PYPI_API_TOKEN = "pypi-..."` then `python tools/publish.py`.
+For TestPyPI, set `PYPI_REPOSITORY=testpypi` and `TEST_PYPI_API_TOKEN`.
+
+GitHub Releases also publish through `.github/workflows/publish.yml` when the
+`PYPI_API_TOKEN` repository secret is set.
 
 ## Frequently asked questions
 
@@ -230,8 +286,7 @@ transactional history, observable fallback behavior, and load testing. See the
 
 ## License and feedback
 
-No license has been selected in this checkout. Usage and redistribution terms
-need to be established before a public release.
+PrismCognition is released under the [MIT License](LICENSE).
 
 For a useful bug report, include the library/Python version, an anonymized inquiry,
 offline or live mode, expected behavior, actual behavior, and a minimal reproducer.
