@@ -519,6 +519,13 @@ class HardenedTensionEngine:
             right = p2.get_assessment(clash.clash_regime)
             if left is None or right is None or left.score is None or right.score is None:
                 return False
+            if any(
+                item.contested_count or item.unresolved_count or item.not_groundable_count
+                or item.insufficient_evidence_count
+                or (item.supported_count and item.contradicted_count)
+                for item in (left, right)
+            ):
+                return False
             asymmetric = (
                 left.supported_count > 0
                 and right.contradicted_count > 0

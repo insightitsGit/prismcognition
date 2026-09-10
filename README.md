@@ -48,7 +48,7 @@ assumption names from the inquiry text so two different questions do not emit
 the same skeleton. It is **not** expert judgment about the subject matter.
 The default renderer says this as `Execution mode: OFFLINE`.
 
-The latest local validation recorded **125 passing tests** and **94.06% statement
+The latest local validation recorded **153 passing tests** and **93.84% statement
 coverage** on Windows/Python 3.12.14. CI has a 93% coverage floor and is configured
 for Windows/Linux and Python 3.11–3.14; the full matrix has not yet been verified.
 See the [test guide](docs/testing.md) for scope and limitations.
@@ -206,9 +206,24 @@ python -m prismcognition ingest-evidence --record-id demo-1 --domain-key Plant.e
 Then run the same inquiry again. Matching EMPIRICAL rows can move **factual**
 clashes into `resolved_disagreements` and populate `strongly_supported_claims`.
 They do **not** resolve normative, definitional, or assumption clashes. That is
-an intentional design boundary, not an unfinished wiring. The row `status` field
-is still unused; polarity and score drive assessment. Do not treat a synthetic
-score as a real confidence measurement.
+an intentional design boundary. Only rows marked `SUPPORTED` are accepted
+assertions: their polarity determines support or counterevidence. `CONTESTED`
+rows withhold support pending review. Other statuses are not accepted evidence;
+in particular, `CONTRADICTED` does not automatically establish the inverse claim.
+To supply accepted counterevidence, use `SUPPORTED` with the opposite polarity.
+Do not treat a synthetic score as a real confidence measurement.
+
+Evidence resolution is implemented, not just a roadmap item. Re-running an
+inquiry uses the current evidence; replay uses frozen grounding and does not
+incorporate later evidence changes. Raw structural tension and coverage need not
+change when a factual clash is resolved. Inspect `resolution_status` and both
+disagreement collections rather than using a count as a truth metric.
+
+Resolution currently uses regime-level grounding summaries, not a dedicated
+claim-by-claim adjudicator. Multi-claim integrations must evaluate whether that
+granularity is sufficient. Normative disagreements and parameter assumptions
+are not settled by adding more empirical rows. The aggregate clash threshold
+also controls which clashes appear in the artifact.
 
 ## Local API and browser UI
 

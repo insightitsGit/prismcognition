@@ -1,5 +1,31 @@
 # Testing and release acceptance
 
+## Evidence-feedback follow-up
+
+Verified on Windows/Python 3.12.14: **153 tests passed**, with **93.84% statement
+coverage**, above the unchanged 93% gate. Two dependency deprecation warnings
+remain. Live-provider behavior was mocked; no production accuracy or load claim
+is implied.
+
+`test_evidence_feedback.py` verifies the full HTTP ingestion-to-deliberation path:
+five accepted supporting rows resolve factual clashes; opposite accepted evidence
+or a contested row reopens them; unrelated domains/regimes do not resolve them;
+unaccepted statuses do not produce strongly supported claims; and a saved bundle
+replays its original resolution after current evidence changes. Mixed uncertain
+grounding summaries cannot resolve clashes. Sequential hybrid runs no longer
+retain a previous run's fallback warning.
+
+The existing content tests explicitly lower the aggregate clash threshold to 0.1
+when checking isolated assumption/normative contributions. Their previous use of
+the default 0.35 filtered those rows and made their assertions fail. This changes
+test setup, not production threshold semantics.
+
+Evidence status policy: `SUPPORTED` means an accepted assertion of the supplied
+polarity, not proof of source truth. `CONTESTED` blocks support for the matched
+domain/regime pending review. Other statuses are excluded from accepted evidence;
+a rejected assertion does not establish its inverse. Resolution still aggregates
+at regime level, so claim-specific adjudication remains an integration limitation.
+
 ## Verified in this development pass
 
 Coverage follow-up: **125 tests passed** on Windows/Python 3.12.14, with
@@ -74,9 +100,9 @@ does not close the following release gates:
   can lose data. Same inquiry and risk level produce the same ID and overwrite
   earlier runs, even when evidence or provider output changes. Use unique run IDs
   with a separate content hash before treating this as an immutable audit log.
-- Version evidence snapshots and define how EvidenceRecord.status affects
-  assessment. The present store assesses polarity and score and ignores the
-  row's status; ingestion does not validate that evidence is trustworthy.
+- Version evidence snapshots and validate source trust. EvidenceRecord.status
+  now controls assertion acceptance as documented above; ingestion still does
+  not validate that evidence is trustworthy.
   Polarity-aligned EMPIRICAL rows can close matching factual clashes
   (`resolved_disagreements`) and promote `strongly_supported_claims`. They do
   not resolve normative, definitional, or assumption clashes; that is a design

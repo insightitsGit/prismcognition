@@ -22,6 +22,7 @@ class HybridClusterGroup:
         return stances[0]
 
     async def evaluate_all(self, inquiry: str, *, depth: ExecutionTier) -> List[EpistemicStance]:
+        self.fallback_notes.clear()
         if not self.extractors:
             return await self.deterministic.evaluate_all(inquiry, depth=depth)
         cluster_id = self.deterministic.evaluators[0].spec.cluster_id

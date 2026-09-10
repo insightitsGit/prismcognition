@@ -57,6 +57,20 @@ class EvidenceStore:
                 f"No evidence rows in snapshot '{self.snapshot_id}' for {conclusion.domain_key}/{warrant.epistemic_regime.value}.",
             )
 
+        # Only accepted assertions can support or contradict another claim.
+        # A rejected/unresolved assertion is not evidence of its inverse.
+        contested = [item for item in matches if item.status == GroundingStatus.CONTESTED]
+        if contested:
+            return (
+                GroundingStatus.CONTESTED, None, (), (),
+                "Matched evidence includes contested assertions; support withheld pending review.",
+            )
+        matches = [item for item in matches if item.status == GroundingStatus.SUPPORTED]
+        if not matches:
+            return (
+                GroundingStatus.INSUFFICIENT_EVIDENCE, None, (), (),
+                "No accepted SUPPORTED assertions match; rejected or unresolved rows cannot establish truth.",
+            )
         supporting = [item for item in matches if item.polarity == conclusion.polarity]
         opposing = [
             item

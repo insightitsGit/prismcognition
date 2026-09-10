@@ -101,7 +101,9 @@ async def test_classifier_scores_diverge_for_paint_and_bankruptcy():
 
 @pytest.mark.asyncio
 async def test_offline_paint_and_bankruptcy_are_not_the_same_skeleton():
-    engine = build_default_orchestrator(evidence_store=EvidenceStore(snapshot_id="empty-content"))
+    # Isolated assumption/normative contributions are below the default 0.35
+    # aggregate cutoff; use 0.1 to inspect those lower-tension rows explicitly.
+    engine = build_default_orchestrator(evidence_store=EvidenceStore(snapshot_id="empty-content"), clash_threshold=0.1)
     paint = await engine.deliberate("What color should we paint the office?", risk_level="LOW")
     bankrupt = await engine.deliberate("Should we file for bankruptcy immediately?", risk_level="LOW")
 
@@ -179,7 +181,7 @@ def test_factual_row_resolves_while_normative_row_stays_active():
 @pytest.mark.asyncio
 async def test_empirical_evidence_closes_factual_clashes_and_not_the_rest():
     inquiry = "Should we expand the plant this quarter?"
-    before_engine = build_default_orchestrator(evidence_store=EvidenceStore(snapshot_id="pre-evidence"))
+    before_engine = build_default_orchestrator(evidence_store=EvidenceStore(snapshot_id="pre-evidence"), clash_threshold=0.1)
     before = await before_engine.deliberate(inquiry, risk_level="LOW")
     assert before.thesis_domain_key == "Plant.expand"
     assert before.resolved_disagreements == ()
@@ -202,7 +204,7 @@ async def test_empirical_evidence_closes_factual_clashes_and_not_the_rest():
                 source_ref=f"measurement://strong/{index}",
             )
         )
-    after_engine = build_default_orchestrator(evidence_store=store)
+    after_engine = build_default_orchestrator(evidence_store=store, clash_threshold=0.1)
     after = await after_engine.deliberate(inquiry, risk_level="LOW")
 
     assert after.strongly_supported_claims
