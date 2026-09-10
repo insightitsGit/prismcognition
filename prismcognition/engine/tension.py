@@ -436,6 +436,38 @@ class HardenedTensionEngine:
             return ResolutionStatus.RESOLVED_BY_EVIDENCE
         return ResolutionStatus.CURRENTLY_UNRESOLVED
 
+    def resolve_clash(
+        self,
+        clash: EpistemicClash,
+        p1: GroundingProfile,
+        p2: GroundingProfile,
+        *,
+        has_midpoint: bool,
+        raw_delta: float,
+    ) -> ResolutionStatus:
+        """Per-clash status so evidence can resolve factual rows without waiting on other clash types."""
+        if raw_delta < self.tau_clash:
+            return ResolutionStatus.NO_MATERIAL_DISAGREEMENT
+        if clash.clash_type == "DEFINITIONAL_CONFLICT":
+            return ResolutionStatus.DEFINITIONALLY_IRREDUCIBLE
+        if clash.clash_type == "NORMATIVE_CONFLICT":
+            return ResolutionStatus.NORMATIVELY_IRREDUCIBLE
+        if clash.clash_type == "INFERENCE_RULE_CONFLICT":
+            return ResolutionStatus.AXIOMATICALLY_IRREDUCIBLE
+        if clash.clash_type == "ASSUMPTION_CONFLICT":
+            return (
+                ResolutionStatus.CONDITIONALLY_RESOLVABLE
+                if has_midpoint
+                else ResolutionStatus.CURRENTLY_UNRESOLVED
+            )
+        if self._inaccessible([clash], p1, p2):
+            return ResolutionStatus.INSUFFICIENT_EPISTEMIC_ACCESS
+        if clash.clash_type in {"FACTUAL_CONFLICT", "CAUSAL_CONFLICT"} and self._evidence_resolves([clash], p1, p2):
+            return ResolutionStatus.RESOLVED_BY_EVIDENCE
+        if self._missing_scores([clash], p1, p2):
+            return ResolutionStatus.CURRENTLY_UNRESOLVED
+        return ResolutionStatus.CURRENTLY_UNRESOLVED
+
     def _missing_scores(
         self,
         clashes: List[EpistemicClash],
@@ -475,7 +507,11 @@ class HardenedTensionEngine:
         p1: GroundingProfile,
         p2: GroundingProfile,
     ) -> bool:
-        factual = [item for item in clashes if item.clash_type == "FACTUAL_CONFLICT"]
+        factual = [
+            item
+            for item in clashes
+            if item.clash_type in {"FACTUAL_CONFLICT", "CAUSAL_CONFLICT"}
+        ]
         if not factual:
             return False
         for clash in factual:

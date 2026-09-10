@@ -50,11 +50,19 @@ class EpistemicOrchestrator:
         grounding_verifier: Any = None,
         clash_threshold: float = 0.35,
         threshold_config: Optional[Dict[str, float]] = None,
+        execution_mode: str = "offline",
+        live_requested: bool = False,
+        execution_notes: Tuple[str, ...] = (),
     ):
         self.router = router
         self.chaos_room = chaos_room
         self.clusters = cluster_registry or default_cluster_registry()
         self.verifier = grounding_verifier
+        self.execution_mode = execution_mode if execution_mode in {"offline", "live"} else "offline"
+        self.live_requested = live_requested
+        self.execution_notes = execution_notes or (
+            "Deterministic adapters; this is not live model output.",
+        )
         self.thresholds = {**DEFAULT_THRESHOLDS, **(threshold_config or {})}
         self.thresholds["structural_clash"] = clash_threshold
         self.subtractive_gate = SubtractiveGate(tol=self.thresholds["subtractive_rank_tol"])
@@ -162,7 +170,7 @@ class EpistemicOrchestrator:
             warrant_groundings[stance.stance_id] = tuple(groundings)
             grounding_profiles[stance.stance_id] = GroundingRollupEngine.compile_profile(list(groundings))
 
-        disagreements, diversities, evidence_needed, irreducible = collect_pair_artifacts(
+        disagreements, resolved, diversities, evidence_needed, irreducible = collect_pair_artifacts(
             viable_stances,
             grounding_profiles,
             claims_universe,
@@ -175,6 +183,7 @@ class EpistemicOrchestrator:
             warrant_groundings,
             self.thresholds["support_threshold"],
         )
+        thesis_key = next((item.conclusion.domain_key for item in viable_stances), None)
         artifact = DeliberationArtifact(
             deliberation_id=deliberation_id,
             inquiry_text=inquiry,
@@ -185,12 +194,17 @@ class EpistemicOrchestrator:
             strongly_supported_claims=tuple(supported),
             ruin_analysis=ruin_result,
             active_disagreements=tuple(disagreements),
+            resolved_disagreements=tuple(resolved),
+            thesis_domain_key=thesis_key,
             perspective_diversities=tuple(diversities),
             evidence_needed=evidence_needed,
-            assumptions_that_matter=assumptions_that_matter(viable_stances, disagreements),
+            assumptions_that_matter=assumptions_that_matter(viable_stances, list(disagreements) + list(resolved)),
             irreducible_tensions=irreducible,
             optional_recommendation=None,
             route_plan=route_plan,
+            execution_mode=self.execution_mode,  # type: ignore[arg-type]
+            live_requested=self.live_requested,
+            execution_notes=self._execution_notes(),
             provenance=provenance,
         )
         artifact = attach_coverage(artifact)
@@ -224,9 +238,22 @@ class EpistemicOrchestrator:
             optional_recommendation=artifact.optional_recommendation,
             threshold_config=dict(self.thresholds),
             frozen_route_plan=route_plan,
+            resolved_disagreements=artifact.resolved_disagreements,
+            thesis_domain_key=artifact.thesis_domain_key,
+            execution_mode=artifact.execution_mode,
+            live_requested=artifact.live_requested,
+            execution_notes=artifact.execution_notes,
             provenance=artifact.provenance,
         )
         return artifact
+
+    def _execution_notes(self) -> Tuple[str, ...]:
+        notes = list(self.execution_notes)
+        for group in self.clusters.values():
+            for item in getattr(group, "fallback_notes", ()):
+                if item not in notes:
+                    notes.append(item)
+        return tuple(notes)
 
     def last_frozen_bundle(self) -> FrozenDeliberationBundle:
         if self._last_bundle is None:

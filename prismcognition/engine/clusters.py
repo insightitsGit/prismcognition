@@ -5,6 +5,7 @@ import hashlib
 from typing import Dict, List, Sequence
 
 from prismcognition.engine.catalog import METHOD_CATALOG, MethodSpec, methods_for
+from prismcognition.engine.thesis import ThesisFrame, extract_thesis
 from prismcognition.identity import artifact_id, new_provenance, prompt_digest
 from prismcognition.schemas.core import (
     Assumption,
@@ -18,27 +19,28 @@ from prismcognition.schemas.core import (
 
 
 class DeterministicMethodEvaluator:
-    """Emits one typed stance for a single catalog method. No model call."""
+    """Content-derived scaffolding for one catalog method. Not expert judgment."""
 
     def __init__(self, spec: MethodSpec):
         self.spec = spec
 
     async def evaluate(self, inquiry: str, *, depth: ExecutionTier) -> EpistemicStance:
         spec = self.spec
+        frame = extract_thesis(inquiry)
         provenance = new_provenance(
             artifact_id_value=artifact_id("stance", spec.cluster_id, spec.method_id, inquiry),
             model_provider="internal",
             model_id=f"deterministic_{spec.cluster_id}_{spec.method_id}",
             prompt_hash=prompt_digest((spec.cluster_id, spec.method_id, inquiry, depth.value)),
         )
-        polarity = Polarity.NEGATIVE if spec.cluster_id == "4" else Polarity.POSITIVE
+        polarity = _polarity(spec, frame)
         claim = StructuredClaim(
             claim_id=artifact_id("claim", spec.cluster_id, spec.method_id, inquiry),
-            subject="Inquiry",
-            predicate="thesis_holds",
-            target_object="True",
+            subject=frame.subject,
+            predicate=frame.predicate,
+            target_object=frame.target,
             polarity=polarity,
-            domain_key="Inquiry.thesis_holds",
+            domain_key=frame.domain_key,
             raw_statement=inquiry,
             provenance=provenance,
         )
@@ -55,15 +57,15 @@ class DeterministicMethodEvaluator:
         warrant = Warrant(
             warrant_id=artifact_id("warr", spec.cluster_id, spec.method_id, inquiry),
             epistemic_regime=spec.regime,
-            rule_statement=f"{spec.name}_rule",
+            rule_statement=f"{spec.name}_rule:{frame.domain_key}",
             premise_claim_ids=(premise.claim_id,),
             conclusion_claim_id=claim.claim_id,
             declared_confidence=0.55 if depth == ExecutionTier.PROBE else 0.75,
             normative_framework_id=_framework(spec),
             provenance=provenance,
         )
-        assumptions = _assumptions(spec, inquiry, provenance)
-        commitments = _commitments(spec, claim, provenance)
+        assumptions = _assumptions(spec, inquiry, frame, provenance)
+        commitments = _commitments(spec, claim, frame, provenance)
         propositions = (claim, premise)
         return EpistemicStance(
             stance_id=artifact_id("sid", spec.cluster_id, spec.method_id, inquiry),
@@ -110,25 +112,31 @@ def _framework(spec: MethodSpec) -> str | None:
     return None
 
 
-def _assumptions(spec: MethodSpec, inquiry: str, provenance) -> tuple[Assumption, ...]:
+def _polarity(spec: MethodSpec, frame: ThesisFrame) -> Polarity:
+    if spec.cluster_id == "4":
+        return Polarity.NEGATIVE
+    if spec.cluster_id == "5" and frame.severity == "catastrophic":
+        return Polarity.NEGATIVE
+    if spec.method_id == "6.1" and frame.severity == "catastrophic":
+        return Polarity.NEGATIVE
+    return Polarity.POSITIVE
+
+
+def _assumptions(spec: MethodSpec, inquiry: str, frame: ThesisFrame, provenance) -> tuple[Assumption, ...]:
     if spec.method_id == "3.1":
         value = 0.30
-        name = "implementation_cost"
     elif spec.method_id == "3.2":
         value = 0.35
-        name = "implementation_cost"
     elif spec.method_id == "5.1":
         value = 0.80
-        name = "implementation_cost"
     elif spec.method_id == "5.2":
         value = 0.85
-        name = "implementation_cost"
     else:
         return ()
     return (
         Assumption(
             assumption_id=artifact_id("assump", spec.method_id, inquiry),
-            parameter_name=name,
+            parameter_name=frame.assumption_name,
             assumed_value=value,
             range_lower=0.0,
             range_upper=1.0,
@@ -137,14 +145,36 @@ def _assumptions(spec: MethodSpec, inquiry: str, provenance) -> tuple[Assumption
     )
 
 
-def _commitments(spec: MethodSpec, claim: StructuredClaim, provenance) -> tuple[NormativeCommitment, ...]:
+def _commitments(
+    spec: MethodSpec,
+    claim: StructuredClaim,
+    frame: ThesisFrame,
+    provenance,
+) -> tuple[NormativeCommitment, ...]:
+    action = claim.model_copy(
+        update={
+            "claim_id": artifact_id("deontic", spec.method_id, frame.domain_key),
+            "polarity": Polarity.POSITIVE,
+        }
+    )
     if spec.method_id == "6.1":
+        if frame.severity == "catastrophic":
+            return (
+                NormativeCommitment(
+                    axiom_name="NonMaleficence",
+                    framework_id="deontology",
+                    priority_rank=1,
+                    obligatory_claims=(),
+                    prohibited_claims=(action,),
+                    provenance=provenance,
+                ),
+            )
         return (
             NormativeCommitment(
                 axiom_name="NonMaleficence",
                 framework_id="deontology",
                 priority_rank=1,
-                obligatory_claims=(claim,),
+                obligatory_claims=(action,),
                 prohibited_claims=(),
                 provenance=provenance,
             ),
@@ -155,7 +185,7 @@ def _commitments(spec: MethodSpec, claim: StructuredClaim, provenance) -> tuple[
                 axiom_name="MaxBeneficence",
                 framework_id="utilitarian",
                 priority_rank=1,
-                obligatory_claims=(claim,),
+                obligatory_claims=(action,),
                 prohibited_claims=(),
                 provenance=provenance,
             ),

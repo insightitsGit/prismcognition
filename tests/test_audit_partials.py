@@ -88,7 +88,7 @@ def test_assumption_pivot_is_returned_not_rebuilt():
     assert evaluation.pivot.pivot_threshold == evaluation.midpoint.midpoint
     assert evaluation.pivot.provenance.artifact_id == evaluation.midpoint.provenance.artifact_id
 
-    disagreements, _, _, _ = collect_pair_artifacts(
+    disagreements, _, _, _, _ = collect_pair_artifacts(
         [s1, s2],
         {"s1": GroundingProfile(regime_assessments=()), "s2": GroundingProfile(regime_assessments=())},
         {},
@@ -180,6 +180,11 @@ def test_resolved_by_evidence_requires_asymmetric_grounding():
     )
     evaluation = engine.evaluate_pair(s1, s2, left, right, {"c1": c1, "c2": c2})
     assert evaluation.status == ResolutionStatus.RESOLVED_BY_EVIDENCE
+    active, resolved, _, _, _ = collect_pair_artifacts(
+        [s1, s2], {"s1": left, "s2": right}, {"c1": c1, "c2": c2}, engine, 0.35
+    )
+    assert not active
+    assert resolved and resolved[0].resolution_status == ResolutionStatus.RESOLVED_BY_EVIDENCE
 
 
 def test_inaccessible_regime_is_insufficient_epistemic_access():
@@ -215,6 +220,6 @@ async def test_probe_stances_keep_premise_propositions():
     spec = methods_for("2", ExecutionTier.PROBE)[0]
     stance = await DeterministicMethodEvaluator(spec).evaluate("measure rainfall", depth=ExecutionTier.PROBE)
     domains = {item.domain_key for item in stance.propositions}
-    assert "Inquiry.thesis_holds" in domains
+    assert "Rainfall.observed" in domains
     assert any(key.startswith("Inquiry.is_well_posed.") for key in domains)
     assert stance.warrants[0].premise_claim_ids[0] in {item.claim_id for item in stance.propositions}

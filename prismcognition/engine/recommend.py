@@ -23,6 +23,11 @@ def draft_optional_recommendation(artifact: DeliberationArtifact) -> str:
     if artifact.evidence_needed:
         lines.append("Do not decide as if the following absences were refutations:")
         lines.extend(f"- {item}" for item in artifact.evidence_needed)
+    if artifact.resolved_disagreements:
+        lines.append(
+            f"{len(artifact.resolved_disagreements)} factual clash(es) were resolved by evidence; "
+            "that does not dissolve remaining irreducible or assumption clashes."
+        )
     if artifact.active_disagreements and not artifact.irreducible_tensions:
         lines.append(
             f"{len(artifact.active_disagreements)} material disagreement(s) are still open; "

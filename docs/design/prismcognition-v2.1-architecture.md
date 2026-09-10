@@ -115,6 +115,7 @@ EpistemicStance[]               RuinAnalysisResult
 | Component | Module | Role |
 | --- | --- | --- |
 | Inquiry ontology | `engine/inquiry.py` | Typed features; `SKIPPED` is decided on features, not raw English in the router core |
+| Thesis frame | `engine/thesis.py` | Content-derived claim keys, assumption names, and severity (scaffolding, not expert judgment) |
 | Router | `engine/router.py` | Depth allocation |
 | Method catalog | `engine/catalog.py` | Two methods per constructive cluster; PROBE = primary only |
 | Cluster emitters | `engine/clusters.py` | Deterministic stance emission per method |
@@ -247,7 +248,7 @@ Feature extraction uses a typed phrase-and-token ontology (proof/axiom language,
 | 6 Normative | `6.1` deontology, `6.2` utilitarianism | `6.1` | both |
 | 7 Ruin | Chaos Room sandbox | n/a | always |
 
-`ClusterGroup.evaluate_all` returns one stance per selected method. Deterministic emitters produce regime-correct warrants, assumptions, and commitments. An optional `StructuredClusterExtractor` accepts provider JSON and builds the same frozen stance type, including a method-scoped premise proposition, optional commitments, and a semantic vector so live stances remain indexable by `CompatiblePremises`.
+`ClusterGroup.evaluate_all` returns one stance per selected method. Deterministic emitters produce regime-correct warrants, assumptions, and commitments from a `ThesisFrame` extracted from the inquiry text (domain key, polarity, assumption name, severity). Two different inquiries therefore emit different claim keys and clash sets. That is content-derived scaffolding, not expert or content-complete judgment. The renderer labels offline runs as a structural demo. An optional `StructuredClusterExtractor` accepts provider JSON and builds the same frozen stance type, including a method-scoped premise proposition, optional commitments, and a semantic vector so live stances remain indexable by `CompatiblePremises`.
 
 ---
 
@@ -293,18 +294,27 @@ Strongly supported claims are **per-warrant**: a claim is promoted only if it is
 ## 12. Tension and Resolution
 
 Pairwise evaluation emits clashes and diversities, then a `TensionProfile`.
+Pair-level `PairEvaluation.status` is a summary of the whole pair. Artifact
+rows use **per-clash** status from `resolve_clash`, so evidence can close a
+factual row without waiting on a normative or assumption clash in the same pair.
 
-Resolution order:
+Per-clash resolution order:
 
 1. Raw aggregate `< structural_clash` ⇒ `NO_MATERIAL_DISAGREEMENT`
 2. `DEFINITIONAL_CONFLICT` ⇒ `DEFINITIONALLY_IRREDUCIBLE`
 3. `NORMATIVE_CONFLICT` ⇒ `NORMATIVELY_IRREDUCIBLE`
 4. `INFERENCE_RULE_CONFLICT` ⇒ `AXIOMATICALLY_IRREDUCIBLE`
-5. Assumption midpoint ⇒ `CONDITIONALLY_RESOLVABLE`
+5. `ASSUMPTION_CONFLICT` with a midpoint ⇒ `CONDITIONALLY_RESOLVABLE`
 6. Unverifiable / not-groundable clash regime ⇒ `INSUFFICIENT_EPISTEMIC_ACCESS`
-7. Missing regime scores ⇒ `CURRENTLY_UNRESOLVED`
-8. Factual clash with asymmetric supported/contradicted counts ⇒ `RESOLVED_BY_EVIDENCE`
+7. Factual or causal clash with asymmetric supported/contradicted counts ⇒ `RESOLVED_BY_EVIDENCE`
+8. Missing regime scores ⇒ `CURRENTLY_UNRESOLVED`
 9. Else `CURRENTLY_UNRESOLVED`
+
+`RESOLVED_BY_EVIDENCE` rows move to `resolved_disagreements` and leave
+`active_disagreements`. That is an intentional design boundary: polarity-aligned
+EMPIRICAL (or CAUSAL) evidence can close matching factual/causal clashes. It
+does **not** dissolve normative, definitional, or assumption clashes. The
+evidence row `status` field is still unused; polarity and score drive assessment.
 
 `METHODOLOGICAL_COMPLEMENT` is emitted when cluster IDs differ and no clash was recorded.
 
@@ -321,9 +331,9 @@ Every high-spread numeric assumption emits its own `AssumptionMidpoint` and `Epi
 3. Gate  
 4. Index claims (propositions, conclusions, normative claims)  
 5. Verify + roll up  
-6. Derive disagreements, diversity, evidence needed, irreducibles  
+6. Derive disagreements, partition `RESOLVED_BY_EVIDENCE` out of the active set, diversity, evidence needed, irreducibles  
 7. Promote strongly supported claims  
-8. Freeze a `FrozenDeliberationBundle` (including `frozen_route_plan`)
+8. Freeze a `FrozenDeliberationBundle` (including `frozen_route_plan`, `resolved_disagreements`, `thesis_domain_key`)
 9. Attach a first-class `CoverageReport` (cluster IDs and method IDs kept distinct)
 
 Replay re-applies gate + tension and **re-derives** `evidence_needed`, `irreducible_tensions`, strongly supported claims, `assumptions_that_matter`, and coverage. It copies only inputs that are not downstream-derived: inquiry, method coverage lists, ruin result, optional recommendation, route plan, provenance. Canonical hash quantizes floats to 8 decimals.
@@ -335,7 +345,7 @@ Replay re-applies gate + tension and **re-derives** `evidence_needed`, `irreduci
 `render_score(None)` is the token `UNGROUNDED`, never `"0"` or `"0.0"`.  
 `render_score(0.0)` is `"0.0000"` and means scored-as-zero (refutation or empty support), not absence.
 
-`render_deliberation` prints method coverage, ruin status, disagreements, diversity, evidence needed, and irreducibles. It never invents a recommendation when `optional_recommendation` is `None`.
+`render_deliberation` prints execution mode, thesis domain key, method coverage, ruin status, active and evidence-resolved disagreements, diversity, evidence needed, and irreducibles. Offline notes state that scaffolding is a structural demo derived from the inquiry, not expert judgment. It never invents a recommendation when `optional_recommendation` is `None`.
 
 ---
 
@@ -355,7 +365,7 @@ Replay re-applies gate + tension and **re-derives** `evidence_needed`, `irreduci
 
 ## 16. Verification
 
-Required suite: `tests/test_prismcognition_freeze.py`, `tests/test_pipeline.py`, `tests/test_runtime.py`, `tests/test_audit_partials.py`, `tests/test_gaps.py`.
+Required suite: `tests/test_prismcognition_freeze.py`, `tests/test_pipeline.py`, `tests/test_runtime.py`, `tests/test_audit_partials.py`, `tests/test_gaps.py`, `tests/test_content_and_evidence.py`.
 
 Covered:
 
@@ -372,6 +382,8 @@ Covered:
 - Catalog PROBE vs REQUIRED method counts  
 - Orchestrator end-to-end + re-derived replay fields  
 - Renderer `None` vs `0.0`  
+- Offline thesis keys and clash sets differ across inquiries  
+- Per-clash `RESOLVED_BY_EVIDENCE` without dissolving normative/assumption rows  
 - Definitional / causal clashes, `RESOLVED_BY_EVIDENCE`, `INSUFFICIENT_EPISTEMIC_ACCESS`  
 - Router thresholds applied from `threshold_config`  
 - PROBE stances retain premise propositions  
@@ -406,6 +418,7 @@ prismcognition/
   evidence/verifier.py
   persist/store.py
   engine/inquiry.py
+  engine/thesis.py
   engine/router.py
   engine/catalog.py
   engine/clusters.py
@@ -428,6 +441,7 @@ tests/
   test_runtime.py
   test_audit_partials.py
   test_gaps.py
+  test_content_and_evidence.py
 docs/design/
   prismcognition-v2.1-architecture.md
 ```
@@ -437,11 +451,11 @@ Run:
 ```
 python -m prismcognition "Should we expand the plant this quarter?"
 python -m prismcognition deliberate "..." --recommend --data-dir .prismcognition
-python -m prismcognition ingest-evidence --record-id e1 --domain-key Inquiry.thesis_holds --polarity 1 --regime EMPIRICAL --score 0.8 --source-ref note://1
+python -m prismcognition ingest-evidence --record-id e1 --domain-key Plant.expand --polarity 1 --regime EMPIRICAL --score 0.8 --source-ref note://1
 python -m prismcognition serve --port 8765
 ```
 
-Live providers (optional): set `PRISM_LLM_API_KEY` or `OPENAI_API_KEY` and pass `--live`. The OpenAI-compatible adapter posts to `/chat/completions` and `/embeddings` and accepts only JSON objects. Offline mode stays fully functional.
+Live providers (optional): set `PRISM_LLM_API_KEY` or `OPENAI_API_KEY` and pass `--live`. The OpenAI-compatible adapter posts to `/chat/completions` and `/embeddings` and accepts only JSON objects. `--live` / `live=True` without a credential is a hard error (`LiveModeUnavailableError`); it does not silently run deterministic adapters. The renderer always prints `Execution mode: OFFLINE` or `LIVE`. Offline mode stays fully functional when live is not requested. Offline scaffolding is content-derived (claim keys and clashes follow the inquiry) and explicitly not expert judgment.
 
 ---
 

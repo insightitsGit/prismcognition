@@ -5,6 +5,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from prismcognition.api.app import create_app
+from prismcognition.engine.thesis import extract_thesis
 from prismcognition.factory import build_default_orchestrator
 from prismcognition.persist.store import ArtifactStore
 from prismcognition.replay.engine import ReplayEngine
@@ -15,14 +16,16 @@ from prismcognition.settings import load_settings
 def test_evidence_deliberation_restart_and_offline_replay(tmp_path, monkeypatch, risk):
     settings = load_settings(data_dir=str(tmp_path), live=False)
     with TestClient(create_app(settings)) as client:
+        inquiry = "Should we expand the plant this quarter?"
         evidence = client.post("/api/evidence", json={
-            "record_id": "measurement-1", "domain_key": "Inquiry.thesis_holds",
+            "record_id": "measurement-1",
+            "domain_key": extract_thesis(inquiry).domain_key,
             "polarity": 1, "regime": "EMPIRICAL", "support_score": 0.85,
             "source_ref": "measurement://reviewed/1",
         })
         assert evidence.status_code == 200
         created = client.post("/api/deliberations", json={
-            "inquiry": "Should we expand the plant this quarter?", "risk_level": risk,
+            "inquiry": inquiry, "risk_level": risk,
         })
         assert created.status_code == 200
         original = created.json()["artifact"]

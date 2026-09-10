@@ -75,13 +75,17 @@ does not close the following release gates:
   earlier runs, even when evidence or provider output changes. Use unique run IDs
   with a separate content hash before treating this as an immutable audit log.
 - Version evidence snapshots and define how EvidenceRecord.status affects
-  assessment. The present store assesses polarity and ignores the row's status;
-  ingestion does not validate that evidence is trustworthy. Establish reviewed
-  evidence fixtures before claiming reliable grounding.
-- Make live-mode misconfiguration and deterministic fallback visible in results
-  and operational metrics. Missing credentials currently disable live mode;
-  hybrid extraction failures fall back to deterministic evaluators. Their output
-  must not be presented as independent expert or provider agreement.
+  assessment. The present store assesses polarity and score and ignores the
+  row's status; ingestion does not validate that evidence is trustworthy.
+  Polarity-aligned EMPIRICAL rows can close matching factual clashes
+  (`resolved_disagreements`) and promote `strongly_supported_claims`. They do
+  not resolve normative, definitional, or assumption clashes; that is a design
+  boundary, not an unfinished wire. Establish reviewed evidence fixtures before
+  claiming reliable grounding.
+- Live mode without credentials is an error (`LiveModeUnavailableError` / CLI
+  exit 2). Hybrid extraction failures after live activation fall back to
+  deterministic evaluators and must stay labeled as fallbacks, not provider
+  agreement.
 - Add whole-request deadlines, bounded admission/concurrency, provider budgets,
   payload-size enforcement before JSON parsing, and overload behavior. Threaded
   transport no longer blocks the event loop, but cancelling its await does not
@@ -117,4 +121,6 @@ does not close the following release gates:
 
 These are architectural capabilities, not demonstrated accuracy improvements,
 compliance guarantees, or a substitute for domain evaluation. Deterministic
-methods are scaffolding; their apparent diversity is not independent expertise.
+methods are scaffolding: they derive structure from the inquiry text so two
+questions do not share one skeleton, but they are not independent expertise or
+content-complete judgment.

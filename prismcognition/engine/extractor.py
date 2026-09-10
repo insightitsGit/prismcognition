@@ -4,6 +4,7 @@ from typing import Any, Dict
 
 from prismcognition.engine.catalog import MethodSpec
 from prismcognition.engine.clusters import _commitments, _framework, _hash_vector
+from prismcognition.engine.thesis import extract_thesis
 from prismcognition.identity import artifact_id, new_provenance, prompt_digest
 from prismcognition.schemas.core import (
     Assumption,
@@ -90,7 +91,7 @@ class StructuredClusterExtractor:
                     provenance=provenance,
                 ),
             )
-        commitments = _commitments(self.spec, claim, provenance)
+        commitments = _commitments(self.spec, claim, extract_thesis(inquiry), provenance)
         if payload.get("framework_id") and not commitments:
             from prismcognition.schemas.core import NormativeCommitment
 

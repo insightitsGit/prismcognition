@@ -59,7 +59,7 @@ class ReplayEngine:
             )
 
         claims_universe = index_claims(viable_stances)
-        disagreements, diversities, evidence_needed, irreducible = collect_pair_artifacts(
+        disagreements, resolved, diversities, evidence_needed, irreducible = collect_pair_artifacts(
             viable_stances,
             profiles,
             claims_universe,
@@ -84,10 +84,15 @@ class ReplayEngine:
             active_disagreements=tuple(disagreements),
             perspective_diversities=tuple(diversities),
             evidence_needed=evidence_needed,
-            assumptions_that_matter=assumptions_that_matter(viable_stances, disagreements),
+            assumptions_that_matter=assumptions_that_matter(viable_stances, list(disagreements) + list(resolved)),
             irreducible_tensions=irreducible,
             optional_recommendation=bundle.optional_recommendation,
             route_plan=bundle.frozen_route_plan,
+            resolved_disagreements=tuple(resolved),
+            thesis_domain_key=bundle.thesis_domain_key,
+            execution_mode=bundle.execution_mode,
+            live_requested=bundle.live_requested,
+            execution_notes=bundle.execution_notes,
             provenance=bundle.provenance,
         )
         return attach_coverage(artifact)

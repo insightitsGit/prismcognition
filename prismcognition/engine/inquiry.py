@@ -73,7 +73,14 @@ _PHYSICAL_TOKENS = {"planck", "kepler", "avogadro", "boltzmann", "orbit", "orbit
 _EMPIRICAL_TOKENS = {"measure", "observe", "observation", "dataset", "experiment", "survey", "measurement"}
 _NORMATIVE_TOKENS = {"ought", "ethical", "moral", "duty", "rights", "permissible", "forbidden"}
 _CAUSAL_TOKENS = {"cause", "because", "mechanism", "intervene", "intervention", "causal"}
-_STRATEGIC_TOKENS = {"decide", "decision", "risk", "expand", "invest", "strategy", "portfolio"}
+_STRATEGIC_TOKENS = {
+    "decide", "decision", "risk", "expand", "invest", "strategy", "portfolio",
+    "bankruptcy", "bankrupt",
+}
+_CATASTROPHIC_TOKENS = {
+    "bankruptcy", "bankrupt", "insolvency", "liquidation", "collapse", "evacuate", "catastrophic",
+}
+_AESTHETIC_TOKENS = {"paint", "color", "colour", "decor", "decorate", "decorating"}
 
 
 def extract_inquiry_features(text: str) -> InquiryFeatures:
@@ -87,6 +94,8 @@ def extract_inquiry_features(text: str) -> InquiryFeatures:
         normative_judgment=_phrase_or_token(lowered, token_set, _NORMATIVE_PHRASES, _NORMATIVE_TOKENS),
         causal_mechanism=_phrase_or_token(lowered, token_set, _CAUSAL_PHRASES, _CAUSAL_TOKENS),
         strategic_decision=_phrase_or_token(lowered, token_set, _STRATEGIC_PHRASES, _STRATEGIC_TOKENS),
+        catastrophic_stakes=bool(token_set & _CATASTROPHIC_TOKENS),
+        routine_or_aesthetic=bool(token_set & _AESTHETIC_TOKENS),
         token_set=tokens,
     )
 

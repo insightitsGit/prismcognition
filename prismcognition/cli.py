@@ -11,7 +11,7 @@ from prismcognition.persist.store import ArtifactStore
 from prismcognition.render.artifact import render_deliberation
 from prismcognition.replay.engine import ReplayEngine
 from prismcognition.schemas.core import EvidenceRecord, GroundingRegime, GroundingStatus, Polarity
-from prismcognition.settings import load_settings
+from prismcognition.settings import LiveModeUnavailableError, load_settings
 
 
 def main(argv: Optional[list[str]] = None) -> int:
@@ -19,7 +19,11 @@ def main(argv: Optional[list[str]] = None) -> int:
     parser.add_argument("--risk-level", default="HIGH", choices=("LOW", "HIGH"))
     parser.add_argument("--json", action="store_true", help="Emit artifact JSON instead of the renderer.")
     parser.add_argument("--recommend", action="store_true", help="Attach a subordinate optional action note.")
-    parser.add_argument("--live", action="store_true", help="Use live LLM adapters when an API key is configured.")
+    parser.add_argument(
+        "--live",
+        action="store_true",
+        help="Require a live provider. Refuses to run unless PRISM_LLM_API_KEY or OPENAI_API_KEY is set.",
+    )
     parser.add_argument("--data-dir", default=None)
 
     # Parse options first to distinguish shorthand from an explicit command.
@@ -103,7 +107,11 @@ def main(argv: Optional[list[str]] = None) -> int:
     if command == "serve":
         from prismcognition.api.app import serve
 
-        serve(host=args.host, port=args.port, data_dir=args.data_dir, live=args.live)
+        try:
+            serve(host=args.host, port=args.port, data_dir=args.data_dir, live=args.live)
+        except LiveModeUnavailableError as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
         return 0
     parser.print_help()
     return 2
@@ -119,7 +127,11 @@ def _deliberate(
     data_dir: Optional[str],
 ) -> int:
     settings = load_settings(data_dir=data_dir, live=live)
-    orchestrator = build_default_orchestrator(settings=settings, live=live)
+    try:
+        orchestrator = build_default_orchestrator(settings=settings, live=live)
+    except LiveModeUnavailableError as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
     artifact = asyncio.run(orchestrator.deliberate(inquiry, risk_level=risk_level, emit_recommendation=recommend))
     store = build_artifact_store(settings)
     store.save_artifact(artifact)

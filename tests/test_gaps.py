@@ -102,7 +102,7 @@ def test_multi_parameter_midpoints_are_all_kept():
     assert names == {"cost", "delay"}
     assert {item.variable_name for item in evaluation.pivots} == names
 
-    disagreements, _, needed, _ = collect_pair_artifacts(
+    disagreements, _, _, needed, _ = collect_pair_artifacts(
         [s1, s2],
         {"s1": GroundingProfile(regime_assessments=()), "s2": GroundingProfile(regime_assessments=())},
         {},

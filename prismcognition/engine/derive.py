@@ -27,7 +27,7 @@ def collect_pair_artifacts(
     claims_universe: Dict[str, StructuredClaim],
     tension: HardenedTensionEngine,
     clash_threshold: float,
-) -> Tuple[List[DisagreementArtifact], List[PerspectiveDiversity], Tuple[str, ...], Tuple[str, ...]]:
+) -> Tuple[List[DisagreementArtifact], List[DisagreementArtifact], List[PerspectiveDiversity], Tuple[str, ...], Tuple[str, ...]]:
     disagreements: List[DisagreementArtifact] = []
     diversities: List[PerspectiveDiversity] = []
     evidence_needed: Set[str] = set()
@@ -45,47 +45,76 @@ def collect_pair_artifacts(
             diversities.extend(evaluation.diversities)
             if evaluation.raw_delta < clash_threshold:
                 continue
+            pair_items: List[DisagreementArtifact] = []
             for clash in evaluation.clashes:
                 midpoint = _midpoint_for_clash(clash, evaluation)
                 pivot = _pivot_for_clash(clash, evaluation)
-                disagreements.append(
-                    DisagreementArtifact(
-                        disagreement_id=f"dis_{left.stance_id}_{right.stance_id}_{clash.clash_id}",
-                        clash=clash,
-                        raw_tension=round(evaluation.raw_delta, 4),
-                        calibrated_tension=(
-                            round(evaluation.calibrated, 4) if evaluation.calibrated is not None else None
-                        ),
-                        tension_profile=evaluation.profile,
-                        profile_left=profiles[left.stance_id],
-                        profile_right=profiles[right.stance_id],
-                        resolution_status=evaluation.status,
-                        midpoint=midpoint,
-                        validated_pivot=pivot,
-                        provenance=derive_provenance(
-                            clash.provenance,
-                            artifact_id_value=artifact_id(
-                                "dis", left.stance_id, right.stance_id, clash.clash_id
-                            ),
-                            model_provider="internal",
-                            model_id="derive",
-                            prompt_hash="deterministic-internal",
-                        ),
-                    )
+                status = tension.resolve_clash(
+                    clash,
+                    profiles[left.stance_id],
+                    profiles[right.stance_id],
+                    has_midpoint=midpoint is not None,
+                    raw_delta=evaluation.raw_delta,
                 )
-            if evaluation.status in (
-                ResolutionStatus.NORMATIVELY_IRREDUCIBLE,
-                ResolutionStatus.AXIOMATICALLY_IRREDUCIBLE,
-                ResolutionStatus.DEFINITIONALLY_IRREDUCIBLE,
-            ):
-                irreducible.append(f"{left.cluster_id} vs {right.cluster_id}: {evaluation.status.value}")
-            elif evaluation.status == ResolutionStatus.CONDITIONALLY_RESOLVABLE:
-                for midpoint in evaluation.midpoints or ((evaluation.midpoint,) if evaluation.midpoint else ()):
-                    evidence_needed.add(f"Parameter confirmation: {midpoint.variable_name} near {midpoint.midpoint}")
-            elif evaluation.status == ResolutionStatus.CURRENTLY_UNRESOLVED:
-                evidence_needed.add(f"Regime grounding for clash {left.cluster_id} vs {right.cluster_id}")
+                item = DisagreementArtifact(
+                    disagreement_id=f"dis_{left.stance_id}_{right.stance_id}_{clash.clash_id}",
+                    clash=clash,
+                    raw_tension=round(evaluation.raw_delta, 4),
+                    calibrated_tension=(
+                        round(evaluation.calibrated, 4) if evaluation.calibrated is not None else None
+                    ),
+                    tension_profile=evaluation.profile,
+                    profile_left=profiles[left.stance_id],
+                    profile_right=profiles[right.stance_id],
+                    resolution_status=status,
+                    midpoint=midpoint,
+                    validated_pivot=pivot,
+                    provenance=derive_provenance(
+                        clash.provenance,
+                        artifact_id_value=artifact_id(
+                            "dis", left.stance_id, right.stance_id, clash.clash_id
+                        ),
+                        model_provider="internal",
+                        model_id="derive",
+                        prompt_hash="deterministic-internal",
+                    ),
+                )
+                pair_items.append(item)
+                disagreements.append(item)
+            for item in pair_items:
+                if item.resolution_status in (
+                    ResolutionStatus.NORMATIVELY_IRREDUCIBLE,
+                    ResolutionStatus.AXIOMATICALLY_IRREDUCIBLE,
+                    ResolutionStatus.DEFINITIONALLY_IRREDUCIBLE,
+                ):
+                    irreducible.append(
+                        f"{left.cluster_id} vs {right.cluster_id}: {item.resolution_status.value}"
+                    )
+                elif item.resolution_status == ResolutionStatus.CONDITIONALLY_RESOLVABLE and item.midpoint:
+                    midpoint = item.midpoint
+                    evidence_needed.add(
+                        f"Parameter confirmation: {midpoint.variable_name} near {midpoint.midpoint}"
+                    )
+                elif item.resolution_status == ResolutionStatus.CURRENTLY_UNRESOLVED:
+                    evidence_needed.add(
+                        f"Regime grounding for clash {left.cluster_id} vs {right.cluster_id}"
+                    )
 
-    return disagreements, diversities, tuple(sorted(evidence_needed)), tuple(irreducible)
+    active, resolved = partition_disagreements(disagreements)
+    return active, resolved, diversities, tuple(sorted(evidence_needed)), tuple(irreducible)
+
+
+def partition_disagreements(
+    items: Iterable[DisagreementArtifact],
+) -> Tuple[List[DisagreementArtifact], List[DisagreementArtifact]]:
+    active: List[DisagreementArtifact] = []
+    resolved: List[DisagreementArtifact] = []
+    for item in items:
+        if item.resolution_status == ResolutionStatus.RESOLVED_BY_EVIDENCE:
+            resolved.append(item)
+        else:
+            active.append(item)
+    return active, resolved
 
 
 def select_strongly_supported(

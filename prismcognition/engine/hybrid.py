@@ -15,6 +15,7 @@ class HybridClusterGroup:
     def __init__(self, deterministic: ClusterGroup, extractors: Sequence[StructuredClusterExtractor] = ()):
         self.deterministic = deterministic
         self.extractors = list(extractors)
+        self.fallback_notes: List[str] = []
 
     async def evaluate(self, inquiry: str, *, depth: ExecutionTier) -> EpistemicStance:
         stances = await self.evaluate_all(inquiry, depth=depth)
@@ -30,5 +31,9 @@ class HybridClusterGroup:
             return await self.deterministic.evaluate_all(inquiry, depth=depth)
         try:
             return list(await asyncio.gather(*[item.evaluate(inquiry, depth=depth) for item in selected]))
-        except Exception:
+        except Exception as exc:
+            self.fallback_notes.append(
+                f"LIVE FALLBACK: cluster {cluster_id} used deterministic adapters after "
+                f"{type(exc).__name__}. This is not live model output for that cluster."
+            )
             return await self.deterministic.evaluate_all(inquiry, depth=depth)

@@ -12,7 +12,7 @@ from prismcognition.factory import build_artifact_store, build_default_orchestra
 from prismcognition.render.artifact import render_deliberation
 from prismcognition.replay.engine import ReplayEngine
 from prismcognition.schemas.core import EvidenceRecord, GroundingRegime, GroundingStatus, Polarity
-from prismcognition.settings import RuntimeSettings, load_settings
+from prismcognition.settings import LIVE_MODE_UNAVAILABLE, LiveModeUnavailableError, RuntimeSettings, load_settings
 
 
 class DeliberateRequest(BaseModel):
@@ -40,12 +40,19 @@ class EvidenceIn(BaseModel):
 
 def create_app(settings: Optional[RuntimeSettings] = None) -> FastAPI:
     runtime = settings or load_settings()
+    if runtime.live_requested and not runtime.llm_api_key:
+        raise LiveModeUnavailableError(LIVE_MODE_UNAVAILABLE)
     app = FastAPI(title="PrismCognition", version="2.1.0")
     app.state.settings = runtime
 
     @app.get("/health")
     async def health():
-        return {"status": "ok", "live_llm": runtime.live_llm}
+        return {
+            "status": "ok",
+            "live_requested": runtime.live_requested,
+            "live_llm": runtime.live_llm,
+            "live_ready": bool(runtime.live_llm and runtime.llm_api_key),
+        }
 
     @app.get("/", response_class=HTMLResponse)
     async def home():

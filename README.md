@@ -43,6 +43,11 @@ Version **2.1.0** is published on [PyPI](https://pypi.org/project/prismcognition
 ([release page](https://pypi.org/project/prismcognition/2.1.0/)).
 Python **3.11+** · Development and evaluation stage.
 
+Offline mode is a **structural demo**. It derives claim keys, polarities, and
+assumption names from the inquiry text so two different questions do not emit
+the same skeleton. It is **not** expert judgment about the subject matter.
+The default renderer says this as `Execution mode: OFFLINE`.
+
 The latest local validation recorded **125 passing tests** and **94.06% statement
 coverage** on Windows/Python 3.12.14. CI has a 93% coverage floor and is configured
 for Windows/Linux and Python 3.11–3.14; the full matrix has not yet been verified.
@@ -171,8 +176,11 @@ Python callers can explicitly save them using `ArtifactStore`.
 A `DeliberationArtifact` includes:
 
 - `strongly_supported_claims`: claims selected under the engine's grounding rules.
-- `active_disagreements` and `perspective_diversities`: conflicts and differences
-  represented separately.
+- `active_disagreements` and `resolved_disagreements`: open clashes versus
+  factual clashes closed by polarity-aligned evidence. Evidence does not dissolve
+  normative, definitional, or assumption clashes.
+- `thesis_domain_key`: the content-derived key to ingest evidence against.
+- `perspective_diversities`: non-adversarial differences, kept separate from conflict.
 - `evidence_needed` and `assumptions_that_matter`: gaps and assumptions surfaced
   for further review.
 - `irreducible_tensions`: disagreements the engine leaves unresolved.
@@ -188,16 +196,19 @@ for the detailed contracts.
 
 ## Add evidence
 
-This synthetic row demonstrates ingestion; replace it with reviewed evidence
-that actually supports the domain and claim being assessed:
+Use the `Thesis domain key` printed by the renderer (for example `Plant.expand`),
+not a generic placeholder:
 
 ```sh
-python -m prismcognition ingest-evidence --record-id demo-1 --domain-key Inquiry.thesis_holds --polarity 1 --regime EMPIRICAL --score 0.8 --source-ref demo://synthetic-example --data-dir .prismcognition-demo
+python -m prismcognition ingest-evidence --record-id demo-1 --domain-key Plant.expand --polarity 1 --regime EMPIRICAL --score 0.8 --source-ref demo://synthetic-example --data-dir .prismcognition-demo
 ```
 
-Evidence ingestion does not verify source truth. The current assessment logic
-uses polarity and does not incorporate the row's `status`; this is an outstanding
-release gate. Do not use a synthetic score as a real confidence measurement.
+Then run the same inquiry again. Matching EMPIRICAL rows can move **factual**
+clashes into `resolved_disagreements` and populate `strongly_supported_claims`.
+They do **not** resolve normative, definitional, or assumption clashes. That is
+an intentional design boundary, not an unfinished wiring. The row `status` field
+is still unused; polarity and score drive assessment. Do not treat a synthetic
+score as a real confidence measurement.
 
 ## Local API and browser UI
 
@@ -213,7 +224,10 @@ ingestion. Keep this unauthenticated development service on a trusted local inte
 ## Connect a model provider
 
 Configure credentials through your environment or secret manager, then opt in
-with `--live` or `load_settings(live=True)`:
+with `--live` or `load_settings(live=True)`. Live mode **refuses to run** unless
+`PRISM_LLM_API_KEY` or `OPENAI_API_KEY` is set. It does not silently fall back
+to the canned offline adapters. The default renderer always prints
+`Execution mode: OFFLINE` or `Execution mode: LIVE`.
 
 - `PRISM_LLM_API_KEY`: provider credential; `OPENAI_API_KEY` is a fallback.
 - `PRISM_LLM_BASE_URL`: the provider's compatible API base URL.
@@ -224,8 +238,8 @@ with `--live` or `load_settings(live=True)`:
 
 Select models and an endpoint supported by your provider. Live requests send
 inquiry content to that provider and may incur charges. Missing credentials
-currently disable live mode, and extraction failures can fall back to deterministic
-methods. Account for this behavior in evaluations.
+currently refuse live mode. Extraction failures after a live session starts can
+fall back to deterministic methods; the renderer labels those fallbacks.
 
 ## Tests and development
 

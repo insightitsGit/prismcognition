@@ -287,6 +287,8 @@ class InquiryFeatures(ImmutableBase):
     normative_judgment: bool = False
     causal_mechanism: bool = False
     strategic_decision: bool = False
+    catastrophic_stakes: bool = False
+    routine_or_aesthetic: bool = False
     token_set: Tuple[str, ...] = ()
 
 
@@ -328,6 +330,8 @@ class DeliberationArtifact(ImmutableBase):
     strongly_supported_claims: Tuple[StructuredClaim, ...]
     ruin_analysis: RuinAnalysisResult
     active_disagreements: Tuple[DisagreementArtifact, ...]
+    resolved_disagreements: Tuple[DisagreementArtifact, ...] = ()
+    thesis_domain_key: Optional[str] = None
     perspective_diversities: Tuple[PerspectiveDiversity, ...]
     evidence_needed: Tuple[str, ...]
     assumptions_that_matter: Tuple[Assumption, ...]
@@ -335,6 +339,9 @@ class DeliberationArtifact(ImmutableBase):
     optional_recommendation: Optional[str] = None
     route_plan: Optional[RoutePlan] = None
     coverage: Optional[CoverageReport] = None
+    execution_mode: Literal["offline", "live"] = "offline"
+    live_requested: bool = False
+    execution_notes: Tuple[str, ...] = ()
     provenance: ProvenanceRef
 
 
@@ -362,9 +369,14 @@ class FrozenDeliberationBundle(ImmutableBase):
     methods_failed: Tuple[str, ...]
     evidence_needed: Tuple[str, ...]
     irreducible_tensions: Tuple[str, ...]
+    resolved_disagreements: Tuple[DisagreementArtifact, ...] = ()
+    thesis_domain_key: Optional[str] = None
     optional_recommendation: Optional[str] = None
     threshold_config: Dict[str, float]
     frozen_route_plan: Optional[RoutePlan] = None
+    execution_mode: Literal["offline", "live"] = "offline"
+    live_requested: bool = False
+    execution_notes: Tuple[str, ...] = ()
     provenance: ProvenanceRef
 
 
